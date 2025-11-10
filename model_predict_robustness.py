@@ -6,12 +6,20 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score
 
+ox.settings.use_cache = True
+ox.settings.cache_folder = "./osmnx_cache"
+
+#  city names which are used to train the model
+city_name = "Madrid, Spain"
+
 # -------------------------------
 # 1. Download a city network
 # -------------------------------
-city_name = "Amsterdam, Netherlands"
+print("Step 1: Download city network")
 G = ox.graph_from_place(city_name, network_type='drive')
-G = ox.add_edge_lengths(G)
+#G = ox.add_edge_lengths(G)
+
+#print(G.)
 
 # Convert to undirected (simplifies percolation)
 G = nx.Graph(G)
@@ -19,6 +27,7 @@ G = nx.Graph(G)
 # -------------------------------
 # 2. Compute edge-level features
 # -------------------------------
+print("Step 2: Compute edge-level features")
 edge_features = []
 for u, v, data in G.edges(data=True):
     length = data.get('length', 0)
@@ -37,6 +46,7 @@ df = pd.DataFrame(edge_features)
 # -------------------------------
 # 3. Simulate percolation
 # -------------------------------
+print("Step 3: Simulate percolation")
 def simulate_percolation(G, fraction=0.2):
     """Randomly remove a fraction of edges and return size of largest component."""
     G_copy = G.copy()
@@ -53,6 +63,7 @@ def simulate_percolation(G, fraction=0.2):
 # 4. Generate robustness labels
 # -------------------------------
 # For simplicity, we’ll compute one robustness value per edge by removing it
+print("Step 4: generate robustness labels")
 robustness_scores = []
 for u, v in G.edges():
     G_temp = G.copy()
@@ -67,6 +78,7 @@ df['robustness'] = robustness_scores
 # -------------------------------
 # 5. Train a model to predict robustness
 # -------------------------------
+print("Step 5: train a model to predict robustness")
 X = df[['length', 'deg_u', 'deg_v', 'betweenness']]
 y = df['robustness']
 
@@ -81,6 +93,7 @@ print(f"R² score: {r2_score(y_test, y_pred):.3f}")
 # -------------------------------
 # 6. Inspect feature importance
 # -------------------------------
+print("Step 6: Inspect feature importance")
 importances = pd.Series(model.feature_importances_, index=X.columns)
 print("\nFeature importance:")
 print(importances.sort_values(ascending=False))

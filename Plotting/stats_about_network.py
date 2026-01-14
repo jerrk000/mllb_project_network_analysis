@@ -1,8 +1,111 @@
 import osmnx as ox
 import networkx as nx
 import numpy as np
+import pandas as pd
 from scipy import stats
 import matplotlib.pyplot as plt
+
+import osmnx as ox
+
+ox.settings.use_cache = True
+ox.settings.log_console = True
+
+place = "Madrid, Spain"
+
+# 1) Download the drivable (car) street network for Madrid
+G = ox.graph_from_place(place, network_type="drive", simplify=True)
+
+# 2) Make the graph undirected
+G = ox.convert.to_undirected(G)
+
+# 3) Plot the network
+# (node_size=0 makes the plot cleaner for city-scale networks)
+def plot_network(G):
+    fig, ax = ox.plot_graph(
+        G,
+        node_size=0,
+        edge_linewidth=0.6,
+        show=True,
+        close=False,
+    )
+
+
+def network_summary_table(G: nx.Graph) -> pd.DataFrame:
+    """
+    Create a summary table of key network measures suitable for percolation analysis.
+    Path-based measures are computed on the largest connected component (LCC).
+    """
+
+    # Basic size measures
+    N = G.number_of_nodes()
+    E = G.number_of_edges()
+    avg_degree = np.mean([d for _, d in G.degree()]) if N > 0 else np.nan
+    density = nx.density(G)
+
+    # Connected components
+    #components = list(nx.connected_components(G))
+    #num_components = len(components)
+    #lcc_nodes = max(components, key=len)
+    #G_lcc = G.subgraph(lcc_nodes)
+
+    #lcc_size = G_lcc.number_of_nodes()
+    #lcc_fraction = lcc_size / N if N > 0 else np.nan
+
+    # Degree statistics
+    degrees = np.array([d for _, d in G.degree()])
+    degree_mean = degrees.mean() if len(degrees) > 0 else np.nan
+    degree_var = degrees.var() if len(degrees) > 0 else np.nan
+    degree_max = degrees.max() if len(degrees) > 0 else np.nan
+
+    # Clustering
+    #avg_clustering = nx.average_clustering(G)
+
+    # Assortativity
+    assortativity = nx.degree_assortativity_coefficient(G)
+
+    """
+    # Path-based measures (LCC only)
+    if lcc_size > 1:
+        avg_path_length = nx.average_shortest_path_length(G_lcc)
+        diameter = nx.diameter(G_lcc)
+        efficiency = nx.global_efficiency(G_lcc)
+    else:
+        avg_path_length = np.nan
+        diameter = np.nan
+        efficiency = np.nan
+    """
+
+    avg_path_length = np.nan
+    diameter = np.nan
+    efficiency = np.nan
+
+    # Assemble table
+    summary = {
+        "Nodes (N)": N,
+        "Edges (E)": E,
+        "Average degree ⟨k⟩": avg_degree,
+        "Density": density,
+        #"Connected components": num_components,
+        #"LCC size": lcc_size,
+        #"LCC fraction": lcc_fraction,
+        "Degree mean": degree_mean,
+        "Degree variance": degree_var,
+        "Max degree": degree_max,
+        #"Average clustering": avg_clustering,
+        "Degree assortativity": assortativity,
+        "Average path length (LCC)": avg_path_length,
+        "Diameter (LCC)": diameter,
+        "Global efficiency (LCC)": efficiency,
+    }
+
+    return pd.DataFrame(summary, index=["Value"]).T
+
+
+#plot_network(G)
+summary = network_summary_table(G)
+print(summary)
+
+"""
 
 def plot_street_network(graph, city_name):
     ox.plot_graph(graph, figsize=(10, 10), bgcolor="white", edge_color="gray", edge_linewidth=0.5, node_size=10,
@@ -136,3 +239,4 @@ plot_node_density(results)
 
 # print("Plotting the city, please wait...")
 # plot_clustering_coefficient(graph, place_name)
+"""

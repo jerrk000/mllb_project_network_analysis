@@ -101,7 +101,7 @@ def network_summary_table(G: nx.Graph) -> pd.DataFrame:
     return pd.DataFrame(summary, index=["Value"]).T
 
 
-#plot_network(G)
+plot_network(G)
 summary = network_summary_table(G)
 print(summary)
 

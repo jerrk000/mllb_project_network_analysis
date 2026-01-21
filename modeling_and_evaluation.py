@@ -993,5 +993,5 @@ if __name__ == "__main__":
         n_tuning_iter=20,    # Iterations for RandomizedSearchCV
         search_method="auto",  # "grid", "random", or "auto"
 
-        drop_features=["avg_degree"],
+        drop_features=["avg_degree", "deg_max", "betweenness_k", "edge_length_std"],
     )

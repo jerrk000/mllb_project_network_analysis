@@ -1,2 +1,7 @@
 cache/
 myvenv/
+deep_learning_project/ml_dataset_outputs/
+deep_learning_project/tile_graphs_europe_selected_200_balanced/
+deep_learning_project/pyg_dataset.pt
+machine_learning_project/ml_dataset_outputs/
+machine_learning_project/tile_graphs_europe_selected_200_balanced/

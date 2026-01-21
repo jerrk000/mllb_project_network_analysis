@@ -32,6 +32,8 @@ import warnings
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import re
+from typing import Iterable
 
 from sklearn.model_selection import GroupKFold, GridSearchCV, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
@@ -47,6 +49,73 @@ from sklearn.inspection import permutation_importance
 # -----------------------------
 # Utilities
 # -----------------------------
+def _apply_feature_drops(
+    X: pd.DataFrame,
+    drop_features: Optional[List[str]] = None,
+    drop_feature_patterns: Optional[List[str]] = None,
+    keep_features: Optional[List[str]] = None,
+    verbose: bool = True,
+) -> pd.DataFrame:
+    """
+    Apply feature selection rules to X.
+
+    Parameters
+    ----------
+    X : pd.DataFrame
+        Feature matrix (numeric columns).
+    drop_features : list[str], optional
+        Exact feature names to drop (if present).
+    drop_feature_patterns : list[str], optional
+        Regex patterns; any feature matching any pattern is dropped.
+    keep_features : list[str], optional
+        If provided, restrict X to these features (intersection with existing).
+        Applied BEFORE dropping (so you can keep a curated list, then still drop a subset).
+    verbose : bool
+        Whether to print what was removed / kept.
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered feature matrix.
+    """
+    Xf = X.copy()
+
+    # 1) Keep-only restriction (optional)
+    if keep_features is not None:
+        keep_set = set(keep_features)
+        existing = [c for c in Xf.columns if c in keep_set]
+        missing = sorted(list(keep_set - set(existing)))
+        Xf = Xf[existing]
+        if verbose:
+            print(f"  Feature keep-list applied: keeping {len(existing)} features.")
+            if missing:
+                print(f"  Note: {len(missing)} keep-features not found in X (ignored): {missing[:10]}{'...' if len(missing) > 10 else ''}")
+
+    # 2) Drop exact names
+    to_drop = set()
+    if drop_features:
+        to_drop |= {c for c in drop_features if c in Xf.columns}
+
+    # 3) Drop by regex patterns
+    if drop_feature_patterns:
+        for pat in drop_feature_patterns:
+            rx = re.compile(pat)
+            matched = [c for c in Xf.columns if rx.search(c)]
+            to_drop |= set(matched)
+
+    if to_drop:
+        Xf = Xf.drop(columns=sorted(to_drop), errors="ignore")
+        if verbose:
+            print(f"  Dropped {len(to_drop)} feature(s): {sorted(to_drop)[:15]}{'...' if len(to_drop) > 15 else ''}")
+    else:
+        if verbose:
+            print("  No feature drops applied.")
+
+    if Xf.shape[1] == 0:
+        raise ValueError("All features were dropped; X has 0 columns after applying drop/keep rules.")
+
+    return Xf
+
 def _split_xy_groups(df: pd.DataFrame, target_col: str, group_col: str) -> Tuple[pd.DataFrame, np.ndarray, np.ndarray]:
     if target_col not in df.columns:
         raise ValueError(f"Missing target column '{target_col}' in dataset.")
@@ -550,6 +619,9 @@ def run_modeling_and_evaluation(
     tuning_level: str = "medium",
     n_tuning_iter: int = 20,
     search_method: str = "auto",
+    drop_features: Optional[List[str]] = None,
+    drop_feature_patterns: Optional[List[str]] = None,
+    keep_features: Optional[List[str]] = None,
 ) -> None:
     """
     Run modeling and evaluation with optional hyperparameter tuning.
@@ -599,6 +671,12 @@ def run_modeling_and_evaluation(
         "n_tuning_iter": n_tuning_iter,
         "search_method": search_method,
     }
+    config.update({
+        "drop_features": str(drop_features),
+        "drop_feature_patterns": str(drop_feature_patterns),
+        "keep_features": str(keep_features),
+    })
+
     
     pd.Series(config).to_csv(out_path / "config.csv", header=False)
     print("=" * 70)
@@ -614,7 +692,16 @@ def run_modeling_and_evaluation(
     print(f"  Columns: {list(df.columns)}")
     
     X, y, groups = _split_xy_groups(df, target_col=target_col, group_col=group_col)
-    print(f"  Features (X): {X.shape}")
+        # Apply optional feature dropping / selection
+    print("\n  Applying feature selection/dropping rules...")
+    X = _apply_feature_drops(
+        X,
+        drop_features=drop_features,
+        drop_feature_patterns=drop_feature_patterns,
+        keep_features=keep_features,
+        verbose=True,
+    )
+    print(f"  Features after filtering: {X.shape}")
     print(f"  Target (y): {y.shape}")
     print(f"  Unique groups: {len(np.unique(groups))}")
     print(f"  Group sizes: {pd.Series(groups).value_counts().to_dict()}")
@@ -905,4 +992,6 @@ if __name__ == "__main__":
         tuning_level="comprehensive",  # "light", "medium", or "comprehensive"
         n_tuning_iter=20,    # Iterations for RandomizedSearchCV
         search_method="auto",  # "grid", "random", or "auto"
+
+        drop_features=["avg_degree"],
     )

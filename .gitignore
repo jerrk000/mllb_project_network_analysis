@@ -3,5 +3,7 @@ myvenv/
 deep_learning_project/ml_dataset_outputs/
 deep_learning_project/tile_graphs_europe_selected_200_balanced/
 deep_learning_project/pyg_dataset.pt
+deep_learning_project/pre_processing_and_processing/__pycache__
+deep_learning_project/results_gnn
 machine_learning_project/ml_dataset_outputs/
 machine_learning_project/tile_graphs_europe_selected_200_balanced/
